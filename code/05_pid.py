@@ -1,0 +1,116 @@
+from time import sleep, perf_counter_ns
+import math
+import signal
+from mpu9250_jmdev.registers import *
+from mpu9250_jmdev.mpu_9250 import MPU9250
+from gpiozero import DigitalOutputDevice, PWMOutputDevice
+from gpiozero.pins.pigpio import PiGPIOFactory
+
+# pip install mpu9250_jmdev, smbus2
+imu = MPU9250(bus=1, gfs=GFS_250, afs=AFS_2G)
+imu.abias = [-0.0805128144054878, -0.0035549256859756097, -0.004114662728658569]
+imu.gbias = [0.039635635003810975, 1.2947640767911586, -1.1598540515434452]
+imu.configure()
+
+# Run "sudo pigpiod" to enable it.
+my_factory = PiGPIOFactory()
+motorPWM = PWMOutputDevice(12, pin_factory=my_factory)
+motorDIR1 = DigitalOutputDevice(5)
+motorDIR2 = DigitalOutputDevice(6)
+
+motorPWM.frequency = 8000
+
+
+startTime = perf_counter_ns()
+lastGyroTime = perf_counter_ns()
+lastPrintTime = perf_counter_ns()
+time = 0
+loopCount = 0
+gyroAngle = float('nan')
+filteredAngle = float('nan')
+integral = 0
+prevError = 0
+filename   = "datalog.dat"
+
+logData = [["secondsSinceStart","accAngle","gyroAngle","filteredAngle"]]
+
+#exit program when Ctrl-C is pressed
+exitRequested = False
+def sigintHandler(sig, frame):
+    print("Ctrl-C pressed, exit program")
+    global exitRequested
+    exitRequested = True
+signal.signal(signal.SIGINT, sigintHandler)
+signal.signal(signal.SIGTERM, sigintHandler)
+
+print("program started")
+sleep(0.1)
+
+while not exitRequested:
+
+    secondsSinceStart = (perf_counter_ns() - startTime) / 1e9
+
+    #read accelerometer
+    ax, ay, az = imu.readAccelerometerMaster()  #[G]
+    accAngle = math.atan(-ax / math.sqrt(pow(ay, 2) + pow(az, 2))) * 180 / math.pi  #[deg]
+    
+    #read gyroscope
+    gx, gy, gz = imu.readGyroscopeMaster()  #[deg/s]
+    timeDelta = (perf_counter_ns() - lastGyroTime) / 1e9  #[sec]
+    lastGyroTime = perf_counter_ns()
+    gyroAngleDelta = gz * timeDelta
+    if math.isnan(gyroAngle): gyroAngle = accAngle
+    gyroAngle += gyroAngleDelta  #[deg]
+    
+    #complementary filter
+    if math.isnan(filteredAngle): filteredAngle = accAngle
+    filteredAngle = 0.999 * (filteredAngle + gyroAngleDelta) + 0.001 * accAngle
+    
+    # Safety check
+    if abs(filteredAngle) >= 18:
+        # Stop motor
+        motorDIR1.value = 0
+        motorDIR2.value = 0
+        motorPWM.value = 0
+        print(f"PROGRAM STOPPED, angle is too large: {filteredAngle:,.2f}")
+        break
+    
+    # Define targetAngle
+    targetAngle = 0 #[deg]
+    
+    #PID controller
+    KP = 1
+    KI = 0
+    KD = 0
+    error = targetAngle - filteredAngle
+    integral += error * timeDelta
+    derivative = (error - prevError) / timeDelta
+    prevError = error
+    PIDoutput = KP * error + KI * integral + KD * derivative
+    
+    #drive motor
+    motorCtrl = min(max(PIDoutput, -1) , 1) # Limit
+    motorPWM.value = abs(motorCtrl)
+    motorDIR1.value = (motorCtrl > 0)
+    motorDIR2.value = (motorCtrl < 0)
+    
+    #logData.append([secondsSinceStart,accAngle,gyroAngle,measuredAngle])
+    
+    #debug print
+    if (perf_counter_ns() - lastPrintTime) / 1e9 >= 1.0:
+        secondsSincePrint = (perf_counter_ns() - lastPrintTime) / 1e9
+        lastPrintTime = perf_counter_ns()
+        loopInterval = secondsSincePrint / loopCount * 1000
+        loopCount = 0
+        #print("accAngle %.2f, gyroAngle %.2f, filteredAngle %.2f, loopInterval %.2f ms"
+           #% (accAngle, gyroAngle, filteredAngle, loopInterval))
+        print(f"Error: {error}, PID: {motorCtrl}, MOTOR: {motorPWM.value}, DIR 1:{motorDIR1.value}, DIR 2:{motorDIR2.value} ")
+        
+    sleep(0.001)
+    loopCount += 1
+
+
+
+
+
+
