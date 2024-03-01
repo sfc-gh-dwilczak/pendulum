@@ -1,4 +1,5 @@
 from time import sleep, perf_counter_ns
+import json
 import math
 import signal
 from mpu9250_jmdev.registers import *
@@ -102,8 +103,14 @@ while not exitRequested:
         lastPrintTime = perf_counter_ns()
         loopInterval = secondsSincePrint / loopCount * 1000
         loopCount = 0
-        print("accAngle %.2f, gyroAngle %.2f, filteredAngle %.2f, loopInterval %.2f ms"
-           % (accAngle, gyroAngle, filteredAngle, loopInterval))
+        data =  {
+                accAngle: accAngle,
+                gyroAngle: gyroAngle,
+                filteredAngle: filteredAngle,
+                loopInterval: loopInterval
+            }
+        
+        print(json.dumps(data))
     
     
     sleep(0.001)
