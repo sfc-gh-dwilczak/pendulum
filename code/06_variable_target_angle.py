@@ -108,7 +108,7 @@ while not exitRequested:
                 "loopInterval": loopInterval
             }
         
-        print(json.dumps(data+','))
+        print(json.dumps(data)+',')
     
     
     sleep(0.001)
