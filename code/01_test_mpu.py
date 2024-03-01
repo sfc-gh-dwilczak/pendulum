@@ -1,0 +1,9 @@
+from mpu9250_jmdev.registers import *
+from mpu9250_jmdev.mpu_9250 import MPU9250
+
+imu = MPU9250(bus=1)
+imu.abias =  [-0.02072217987804878, -0.0010539729420731708, 0.030785537347560954]
+imu.gbias =  [0.3565346322408537, 1.0790941191882621, -1.2880650962271343]
+imu.configure()
+
+

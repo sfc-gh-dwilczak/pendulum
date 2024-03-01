@@ -6,8 +6,8 @@ from mpu9250_jmdev.mpu_9250 import MPU9250
 
 # pip install mpu9250_jmdev, smbus2
 imu = MPU9250(bus=1, gfs=GFS_250, afs=AFS_2G)
-imu.abias = [-0.0805128144054878, -0.0035549256859756097, -0.004114662728658569]
-imu.gbias = [0.039635635003810975, 1.2947640767911586, -1.1598540515434452]
+abias =  [-0.093890380859375, 0.000372314453125, 0.01622924804687509]
+gbias =  [0.33931732177734375, 1.1068344116210938, -1.149749755859375]
 imu.configure()
 
 #imu.calibrateMPU6500()
@@ -58,16 +58,7 @@ while not exitRequested:
     filteredAngle = 0.999 * (filteredAngle + gyroAngleDelta) + 0.001 * accAngle
     
     #debug print
-    if (perf_counter_ns() - lastPrintTime) / 1e9 >= 1.0:
-        secondsSincePrint = (perf_counter_ns() - lastPrintTime) / 1e9
-        lastPrintTime = perf_counter_ns()
-        loopInterval = secondsSincePrint / loopCount * 1000
-        loopCount = 0
-        print("accAngle %.2f, gyroAngle %.2f, filteredAngle %.2f, loopInterval %.2f ms"
-           % (accAngle, gyroAngle, filteredAngle, loopInterval))
-    
-    logData.append([secondsSinceStart,accAngle,gyroAngle,filteredAngle])
-
+    print(filteredAngle)
     sleep(0.001)
     loopCount += 1
 

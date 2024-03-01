@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+    <html lang="en">
+
+        {% include "include/header.html" %}
+
+    <body class="loading" data-layout-config='{"leftSideBarTheme":"dark","layoutBoxed":false, "leftSidebarCondensed":false, "leftSidebarScrollable":false,"darkMode":false, "showRightSidebarOnStart": false}'>
+        <!-- Begin page -->
+        <div class="wrapper">
+            <!-- ========== Left Sidebar Start ========== -->
+            <div class="leftside-menu">
+    
+                {% include "include/logo.html" %}
+    
+                <div class="h-100" id="leftside-menu-container" data-simplebar>
+
+                    <!--- Sidemenu -->
+                    {% include "navbar/sidebar.html" %}
+                    <!-- End Sidebar -->
+
+                    <div class="clearfix"></div>
+
+                </div>
+                <!-- Sidebar -left -->
+
+            </div>
+            <!-- Left Sidebar End -->
+
+            <!-- ============================================================== -->
+            <!-- Start Page Content here -->
+            <!-- ============================================================== -->
+
+            <div class="content-page">
+                <div class="content">
+                    <!-- Topbar Start -->
+                    {% include "navbar/topbar.html" %}
+                    <!-- end Topbar -->
+                    
+                    <!-- Start Content-->
+                    {% block content %}{% endblock %}
+                    <!-- container -->
+
+                </div>
+                <!-- content -->
+
+                <!-- Footer Start -->
+                {% include "navbar/footer.html" %}
+                <!-- end Footer -->
+
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- End Page content -->
+            <!-- ============================================================== -->
+
+
+        </div>
+        <!-- END wrapper -->
+
+        <!-- bundle -->
+        <script src="{{ url_for('static', filename='js/vendor.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/app.min.js') }}"></script>
+
+    </body>
+</html>

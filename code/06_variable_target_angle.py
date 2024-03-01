@@ -30,9 +30,7 @@ gyroAngle = float('nan')
 filteredAngle = float('nan')
 integral = 0
 prevError = 0
-filename   = "datalog.dat"
-
-logData = [["secondsSinceStart","accAngle","gyroAngle","filteredAngle"]]
+targetAngle = 0
 
 #exit program when Ctrl-C is pressed
 exitRequested = False
@@ -75,11 +73,15 @@ while not exitRequested:
         print(f"PROGRAM STOPPED, angle is too large: {filteredAngle:,.2f}")
         break
     
-    # Define targetAngle
-    targetAngle = 0 #[deg]
+    # Variable target angle
+    ANGLE_FIXRATE = 2
+    if filteredAngle < targetAngle:
+        targetAngle += ANGLE_FIXRATE * timeDelta
+    else:
+        targetAngle -= ANGLE_FIXRATE * timeDelta
     
     #PID controller
-    KP = 0.3
+    KP = 0.45
     KI = 0.5
     KD = 0.01
     error = targetAngle - filteredAngle
@@ -95,19 +97,18 @@ while not exitRequested:
     motorDIR2.value = (motorCtrl < 0)
     
     #logData.append([secondsSinceStart,accAngle,gyroAngle,measuredAngle])
-    
-    #debug print
     if (perf_counter_ns() - lastPrintTime) / 1e9 >= 1.0:
         secondsSincePrint = (perf_counter_ns() - lastPrintTime) / 1e9
         lastPrintTime = perf_counter_ns()
         loopInterval = secondsSincePrint / loopCount * 1000
         loopCount = 0
-        #print("accAngle %.2f, gyroAngle %.2f, filteredAngle %.2f, loopInterval %.2f ms"
-           #% (accAngle, gyroAngle, filteredAngle, loopInterval))
-        print(f"Error: {error}, PID: {motorCtrl}, MOTOR: {motorPWM.value}, DIR 1:{motorDIR1.value}, DIR 2:{motorDIR2.value} ")
-        
+        print("accAngle %.2f, gyroAngle %.2f, filteredAngle %.2f, loopInterval %.2f ms"
+           % (accAngle, gyroAngle, filteredAngle, loopInterval))
+    
+    
     sleep(0.001)
     loopCount += 1
+
 
 
 
