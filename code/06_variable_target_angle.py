@@ -42,7 +42,6 @@ def sigintHandler(sig, frame):
 signal.signal(signal.SIGINT, sigintHandler)
 signal.signal(signal.SIGTERM, sigintHandler)
 
-print("program started")
 sleep(0.1)
 
 while not exitRequested:
@@ -71,7 +70,6 @@ while not exitRequested:
         motorDIR1.value = 0
         motorDIR2.value = 0
         motorPWM.value = 0
-        print(f"PROGRAM STOPPED, angle is too large: {filteredAngle:,.2f}")
         break
     
     # Variable target angle
@@ -104,10 +102,10 @@ while not exitRequested:
         loopInterval = secondsSincePrint / loopCount * 1000
         loopCount = 0
         data =  {
-                accAngle: accAngle,
-                gyroAngle: gyroAngle,
-                filteredAngle: filteredAngle,
-                loopInterval: loopInterval
+                "accAngle": accAngle,
+                "gyroAngle": gyroAngle,
+                "filteredAngle": filteredAngle,
+                "loopInterval": loopInterval
             }
         
         print(json.dumps(data))
