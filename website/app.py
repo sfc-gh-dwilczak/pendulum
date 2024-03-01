@@ -54,11 +54,11 @@ def run_script_in_background(script_path):
     """Run the given script and store its output in the database."""
     try:
         output = subprocess.check_output(['python', script_path], text=True)
-        #conn = sqlite3.connect('results.db')
-        #c = conn.cursor()
-        #c.execute('INSERT INTO results (output) VALUES (?)', (output,))
-        #conn.commit()
-        #conn.close()
+        conn = sqlite3.connect('results.db')
+        c = conn.cursor()
+        c.execute('INSERT INTO results (output) VALUES (?)', (output,))
+        conn.commit()
+        conn.close()
     except subprocess.CalledProcessError as e:
         print(f"Error running script: {e}")
 
