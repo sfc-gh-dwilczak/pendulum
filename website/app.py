@@ -53,7 +53,7 @@ def upload_file():
 def run_script_in_background(script_path):
     """Run the given script and store its output in the database."""
     try:
-        output = subprocess.check_output(['python', script_path], text=True)
+        output = subprocess.check_output(['python3', script_path], text=True)
         conn = sqlite3.connect('results.db')
         c = conn.cursor()
         c.execute('INSERT INTO results (output) VALUES (?)', (output,))
