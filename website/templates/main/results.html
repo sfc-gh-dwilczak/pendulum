@@ -1,6 +1,6 @@
 
 
-  {% extends "base/main.html" %}
+{% extends "base/main.html" %}
 
 {% block title %} Home {% endblock %}
 
@@ -8,9 +8,9 @@
 
     <h1 class="mt-5">Results</h1>
     <div class="list-group my-3">
-        [{% for result in results %}
-          <a href="#" class="list-group-item list-group-item-action">{{ result[1] }}</a>
-        {% endfor %}]
+        {% for result in results %}
+          <li class="list-group-item list-group-item-action">[{{ result[1] }}]</li>
+        {% endfor %}
       </div>
 
 {% endblock %}
