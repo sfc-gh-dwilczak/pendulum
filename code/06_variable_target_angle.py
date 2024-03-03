@@ -102,11 +102,10 @@ while not exitRequested:
         loopInterval = secondsSincePrint / loopCount * 1000
         loopCount = 0
         data =  {
-                "accAngle": accAngle,
-                "gyroAngle": gyroAngle,
-                "filteredAngle": filteredAngle,
-                "time": secondsSinceStart
-            }
+            "pwm": round(motorPWM.value,2),
+            "filteredAngle": round(filteredAngle,2),
+            "time": round(secondsSinceStart,2)
+        }
         
         print(json.dumps(data)+',')
     
