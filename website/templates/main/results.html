@@ -1,254 +1,87 @@
-
-
 {% extends "base/main.html" %}
 
 {% block title %} Home {% endblock %}
 
 {% block content %}
-
     <h1 class="mt-5">Results</h1>
-    <div class="list-group my-3">
-        {% for result in results %}
-          <li class="list-group-item list-group-item-action">[{{ result[1] }}]</li>
-        {% endfor %}
-      </div>
 
-      <div class="card">
+    <div class="card">
         <div class="card-body">
             <h4 class="header-title mb-4">Syncing charts</h4>
-            <div id="line-chart-syncing3" data-colors="#000000"></div>
-            <div id="line-chart-syncing2" data-colors="#727cf5"></div>
-            <div dir="ltr">
-                <div id="line-chart-syncing" class="apex-charts" data-colors="#6c757d"></div>
-            </div>
+            <div id="line-chart-pwm"></div>
+            <div id="line-chart-filteredAngle"></div>
+            <!-- Add more divs for additional charts if needed -->
         </div>
         <!-- end card body-->
     </div>
 
     <!-- Vendor js -->
-    <script src="static/js/vendor.min.js"></script>
+    <script src="{{ url_for('static', filename='js/vendor.min.js') }}"></script>
 
     <!-- Apex Chart js -->
-    <script src="static/js/vendor/apexcharts.min.js"></script>
+    <script src="{{ url_for('static', filename='js/vendor/apexcharts.min.js') }}"></script>
 
-    <!-- Apex Chart line Demo js -->
-    
-    
-    
+    <!-- Page Specific JS File -->
     <script>
-      function generateDayWiseTimeSeries(e, t, a) {
-        for (var o = 0, r = []; o < t;) {
-            var s = e,
-                n = Math.floor(Math.random() * (a.max - a.min + 1)) + a.min;
-            r.push([s, n]), e += 864e5, o++
-        }
-      return r
-    }
+        document.addEventListener("DOMContentLoaded", function() {
+            // Prepare the data for ApexCharts
+            const pwmData = [];
+            const filteredAngleData = [];
+            {% for result in results %}
+                pwmData.push({
+                    x: new Date({{ result.time }} * 1000), // Assuming 'time' is in seconds
+                    y: {{ result.pwm }}
+                });
+                filteredAngleData.push({
+                    x: new Date({{ result.time }} * 1000), // Assuming 'time' is in seconds
+                    y: {{ result.filteredAngle }}
+                });
+            {% endfor %}
 
-    (dataColors = $("#line-chart-syncing").data("colors")) && (colors = dataColors.split(","));
-    var optionsline2 = {
-            chart: {
-                type: "line",
-                height: 160,
-                id: "fb",
-                group: "social"
-            },
-            colors: colors,
-            stroke: {
-                width: [3],
-                curve: "straight"
-            },
-            toolbar: {
-                tools: {
-                    selection: !1
-                }
-            },
-            fill: {
-                opacity: 1
-            },
-            tooltip: {
-                followCursor: !1,
-                theme: "dark",
-                x: {
-                    show: !1
+            // Define the chart options
+            var optionsPWM = {
+                series: [{
+                    name: 'PWM',
+                    data: pwmData
+                }],
+                chart: {
+                    id: 'chart-pwm',
+                    group: 'syncing-charts',
+                    type: 'line',
+                    height: 300
                 },
-                marker: {
-                    show: !1
+                xaxis: {
+                    type: 'datetime'
                 },
-                y: {
-                    title: {
-                        formatter: function() {
-                            return ""
-                        }
-                    }
-                }
-            },
-            series: [{
-                data: generateDayWiseTimeSeries(new Date("11 Feb 2017").getTime(), 20, {
-                    min: 10,
-                    max: 30
-                })
-            }],
-            xaxis: {
-                type: "datetime"
-            },
-            grid: {
-                row: {
-                    colors: ["transparent", "transparent"],
-                    opacity: .2
+                // ... other chart options
+            };
+
+            var optionsFilteredAngle = {
+                series: [{
+                    name: 'Filtered Angle',
+                    data: filteredAngleData
+                }],
+                chart: {
+                    id: 'chart-filteredAngle',
+                    group: 'syncing-charts',
+                    type: 'line',
+                    height: 300
                 },
-                borderColor: "#f1f3fa"
-            }
-        },
-    chartline2 = new ApexCharts(document.querySelector("#line-chart-syncing"), optionsline2);
-    chartline2.render();
+                xaxis: {
+                    type: 'datetime'
+                },
+                // ... other chart options
+            };
 
-    
-    (dataColors = $("#line-chart-syncing2").data("colors")) && (colors = dataColors.split(","));
-    
-    options = {
-        chart: {
-            height: 200,
-            type: "line",
-            id: "yt",
-            group: "social"
-        },
-        colors: colors,
-        dataLabels: {
-            enabled: !1
-        },
-        toolbar: {
-            tools: {
-                selection: !1
-            }
-        },
-        tooltip: {
-            followCursor: !1,
-            theme: "dark",
-            x: {
-                show: !1
-            },
-            marker: {
-                show: !1
-            },
-            y: {
-                title: {
-                    formatter: function() {
-                        return ""
-                    }
-                }
-            }
-        },
-        stroke: {
-            width: [3],
-            curve: "smooth"
-        },
-        series: [{
-            data: generateDayWiseTimeSeries(new Date("11 Feb 2017").getTime(), 20, {
-                min: 10,
-                max: 60
-            })
-        }],
-        fill: {
-            gradient: {
-                enabled: !0,
-                opacityFrom: .6,
-                opacityTo: .8
-            }
-        },
-        legend: {
-            position: "top",
-            horizontalAlign: "left"
-        },
-        xaxis: {
-            type: "datetime"
-        },
-        grid: {
-            row: {
-                colors: ["transparent", "transparent"],
-                opacity: .2
-            },
-            borderColor: "#f1f3fa"
-        }
-    };
-    
-    (chart = new ApexCharts(document.querySelector("#line-chart-syncing2"), options)).render();
+            // Initialize the charts
+            var chartPWM = new ApexCharts(document.querySelector("#line-chart-pwm"), optionsPWM);
+            chartPWM.render();
 
-    (dataColors = $("#line-chart-syncing3").data("colors")) && (colors = dataColors.split(","));
-    options = {
-        chart: {
-            height: 200,
-            type: "line",
-            id: "yt",
-            group: "social"
-        },
-        colors: colors,
-        dataLabels: {
-            enabled: !1
-        },
-        toolbar: {
-            tools: {
-                selection: !1
-            }
-        },
-        tooltip: {
-            followCursor: !1,
-            theme: "dark",
-            x: {
-                show: !1
-            },
-            marker: {
-                show: !1
-            },
-            y: {
-                title: {
-                    formatter: function() {
-                        return ""
-                    }
-                }
-            }
-        },
-        stroke: {
-            width: [3],
-            curve: "smooth"
-        },
-        series: [{
-            data: generateDayWiseTimeSeries(new Date("11 Feb 2017").getTime(), 20, {
-                min: 10,
-                max: 60
-            })
-        }],
-        fill: {
-            gradient: {
-                enabled: !0,
-                opacityFrom: .6,
-                opacityTo: .8
-            }
-        },
-        legend: {
-            position: "top",
-            horizontalAlign: "left"
-        },
-        xaxis: {
-            type: "datetime"
-        },
-        grid: {
-            row: {
-                colors: ["transparent", "transparent"],
-                opacity: .2
-            },
-            borderColor: "#f1f3fa"
-        }
-    };
-    
-    (chart = new ApexCharts(document.querySelector("#line-chart-syncing3"), options)).render();
-    
-
-
+            var chartFilteredAngle = new ApexCharts(document.querySelector("#line-chart-filteredAngle"), optionsFilteredAngle);
+            chartFilteredAngle.render();
+        });
     </script>
 
-
     <!-- App js -->
-    <script src="static/js/app.min.js"></script>
-
+    <script src="{{ url_for('static', filename='js/app.min.js') }}"></script>
 {% endblock %}
