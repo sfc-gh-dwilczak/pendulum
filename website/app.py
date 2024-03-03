@@ -72,16 +72,21 @@ def results():
     results = c.fetchall()
     conn.close()
 
-    # Extract the string from the tuple
-    json_string = results[0][0]
 
-    # Use regular expression to extract valid JSON objects
-    json_objects = re.findall(r'\{[^}]+\}', json_string)
+    data = []
 
-    # Parse each JSON object and append it to a list
-    dicts = [json.loads(obj) for obj in json_objects]
+    for result in results:
+        # Extract the string from the tuple
+        json_string = result[0]
+
+        # Use regular expression to extract valid JSON objects
+        json_objects = re.findall(r'\{[^}]+\}', json_string)
+
+        # Parse each JSON object and append it to a list
+        dicts = [json.loads(obj) for obj in json_objects]
+        data.append(dicts)
     
-    return render_template('main/results.html', results=dicts)
+    return render_template('main/results.html', results=data[0])
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
