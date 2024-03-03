@@ -105,7 +105,7 @@ while not exitRequested:
                 "accAngle": accAngle,
                 "gyroAngle": gyroAngle,
                 "filteredAngle": filteredAngle,
-                "loopInterval": loopInterval
+                "time": secondsSinceStart
             }
         
         print(json.dumps(data)+',')
