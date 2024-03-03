@@ -2,6 +2,8 @@ from flask import Flask, request, redirect, url_for, render_template
 import subprocess
 import sqlite3
 import os
+import json
+import re
 from werkzeug.utils import secure_filename
 
 UPLOAD_FOLDER = 'uploads'
@@ -66,10 +68,20 @@ def run_script_in_background(script_path):
 def results():
     conn = sqlite3.connect('results.db')
     c = conn.cursor()
-    c.execute('SELECT * FROM results')
+    c.execute('SELECT output FROM results')
     results = c.fetchall()
     conn.close()
-    return render_template('main/results.html', results=results)
+
+    # Extract the string from the tuple
+    json_string = results[0][0]
+
+    # Use regular expression to extract valid JSON objects
+    json_objects = re.findall(r'\{[^}]+\}', json_string)
+
+    # Parse each JSON object and append it to a list
+    dicts = [json.loads(obj) for obj in json_objects]
+    
+    return render_template('main/results.html', results=dicts)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
