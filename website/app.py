@@ -86,7 +86,7 @@ def results():
         dicts = [json.loads(obj) for obj in json_objects]
         data.append(dicts)
     
-    return render_template('main/results.html', results=data[0])
+    return render_template('main/results.html', results=data[1])
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
