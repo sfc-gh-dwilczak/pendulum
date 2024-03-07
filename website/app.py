@@ -1,49 +1,52 @@
-from flask import Flask, request, redirect, url_for, render_template
+from flask import Flask, render_template, request, jsonify, redirect, url_for
+from werkzeug.utils import secure_filename
+from flask_socketio import SocketIO
 import subprocess
 import sqlite3
 import os
 import json
 import re
-from werkzeug.utils import secure_filename
+import threading
+import random
+import time
+import threading
 
+# Configuration
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'py'}
+DATABASE = 'results.db'
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Extensions
+socketio = SocketIO(app)
+
 # Ensure the upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Check if the file extension is allowed
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 # Initialize the database
 def init_db():
-    conn = sqlite3.connect('results.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS results (
-            id INTEGER PRIMARY KEY,
-            output TEXT
-        )''')
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DATABASE) as conn:
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS results (
+                id INTEGER PRIMARY KEY,
+                output TEXT
+            )''')
+        conn.commit()
 
 init_db()
 
+# Allowed file check
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Routes
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
-        # Check if the post request has the file part
-        if 'file' not in request.files:
-            return redirect(request.url)
-        file = request.files['file']
-        # If the user does not select a file, the browser submits an empty file without a filename.
-        if file.filename == '':
-            return redirect(request.url)
+        file = request.files.get('file')
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -53,40 +56,57 @@ def upload_file():
     return render_template('main/home.html')
 
 def run_script_in_background(script_path):
-    """Run the given script and store its output in the database."""
     try:
-        output = subprocess.check_output(['python3', script_path], text=True)
-        conn = sqlite3.connect('results.db')
-        c = conn.cursor()
-        c.execute('INSERT INTO results (output) VALUES (?)', (output,))
-        conn.commit()
-        conn.close()
+        output = subprocess.check_output(['python3', script_path], stderr=subprocess.STDOUT, text=True)
+        with sqlite3.connect(DATABASE) as conn:
+            c = conn.cursor()
+            c.execute('INSERT INTO results (output) VALUES (?)', (output,))
+            conn.commit()
     except subprocess.CalledProcessError as e:
-        print(f"Error running script: {e}")
+        print(f"Error running script: {e.output}")
 
 @app.route('/results')
 def results():
-    conn = sqlite3.connect('results.db')
-    c = conn.cursor()
-    c.execute('SELECT output FROM results')
-    results = c.fetchall()
-    conn.close()
+    with sqlite3.connect(DATABASE) as conn:
+        c = conn.cursor()
+        c.execute('SELECT output FROM results')
+        data = [{'output': row[0]} for row in c.fetchall()]
+    return render_template('main/results.html', results=data)
+
+@app.route('/code')
+def code():
+    return render_template('main/code.html')
+
+@app.route('/run_code', methods=['POST'])
+def run_code():
+    code_data = request.json.get('code', '')
+    if not code_data:
+        return jsonify({'error': 'No code provided'}), 400
+    temp_filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'temp_code.py')
+    with open(temp_filepath, 'w') as temp_file:
+        temp_file.write(code_data)
+    output = run_script_and_get_output(temp_filepath)
+    return jsonify({'message': 'Code executed successfully', 'output': output})
+
+def run_script_and_get_output(script_path):
+    try:
+        return subprocess.check_output(['python3', script_path], stderr=subprocess.STDOUT, text=True)
+    except subprocess.CalledProcessError as e:
+        return e.output  # Make sure to return the error output for debugging purposes.
 
 
-    data = []
+@app.route('/live_plot')
+def live_plot():
+    return render_template('main/live_plot.html')
 
-    for result in results:
-        # Extract the string from the tuple
-        json_string = result[0]
+@socketio.on('encoder_data')
+def handle_encoder_data(data):
+    print('Received encoder data:', data)
+    socketio.emit('update_data', data)  # Broadcasting received data
 
-        # Use regular expression to extract valid JSON objects
-        json_objects = re.findall(r'\{[^}]+\}', json_string)
-
-        # Parse each JSON object and append it to a list
-        dicts = [json.loads(obj) for obj in json_objects]
-        data.append(dicts)
-    
-    return render_template('main/results.html', results=data[0])
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("Client disconnected")
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    socketio.run(app, debug=True, host='0.0.0.0')

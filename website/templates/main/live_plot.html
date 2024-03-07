@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Live Data Plot with Zero Freeze Option</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        canvas {
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+        }
+    </style>
+</head>
+<body>
+<div style="margin-bottom: 10px;">
+    <button onclick="resetZoom()">Reset Zoom</button>
+    <input type="checkbox" id="freezeZero" name="freezeZero">
+    <label for="freezeZero">Freeze 0 on Y-Axis</label>
+</div>
+<canvas id="myChart"></canvas>
+<script>
+    var ctx = document.getElementById('myChart').getContext('2d');
+    var freezeZero = document.getElementById('freezeZero');
+    var myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Angle',
+                backgroundColor: 'rgb(75, 192, 192)',
+                borderColor: 'rgb(75, 192, 192)',
+                data: [],
+                fill: false,
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    title: { display: true, text: 'Angle (degrees)' }
+                },
+                x: {
+                    title: { display: true, text: 'Time' }
+                }
+            },
+            plugins: {
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'xy'
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: 'xy'
+                    }
+                }
+            }
+        }
+    });
+
+    function updateAxisSettings() {
+        var min = Math.min(...myChart.data.datasets[0].data);
+        var max = Math.max(...myChart.data.datasets[0].data);
+        myChart.options.scales.y.beginAtZero = freezeZero.checked;
+        if (freezeZero.checked) {
+            myChart.options.scales.y.min = Math.min(0, min);
+            myChart.options.scales.y.max = Math.max(0, max);
+        } else {
+            delete myChart.options.scales.y.min;
+            delete myChart.options.scales.y.max;
+        }
+        myChart.update();
+    }
+
+    freezeZero.addEventListener('change', updateAxisSettings);
+
+    var socket = io.connect('http://192.168.1.12:5000');
+    socket.on('connect', () => console.log("Connected to WebSocket server."));
+    socket.on('update_data', (data) => {
+        var now = new Date();
+        var timeLabel = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+        myChart.data.labels.push(timeLabel);
+        myChart.data.datasets.forEach((dataset) => dataset.data.push(data.angle));
+        updateAxisSettings();
+    });
+
+    function resetZoom() {
+        myChart.resetZoom();
+    }
+</script>
+</body>
+</html>
