@@ -1,68 +1,118 @@
-from flask import Flask, request, redirect, url_for, render_template
-import subprocess
+from flask import Flask, request, jsonify, render_template
+from flask_sqlalchemy import SQLAlchemy
+import traceback
+import sys
+from io import StringIO
+
+
 import sqlite3
 import os
 import json
 import re
-from werkzeug.utils import secure_filename
-
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'py'}
+import sys
+import traceback
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///code_snippets.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-# Ensure the upload folder exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+class CodeSnippet(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False, unique=True)
+    code = db.Column(db.Text, nullable=False)
+    result = db.Column(db.Text)  # New column for storing execution results
 
-# Check if the file extension is allowed
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def initialize_database():
+    with app.app_context():
+        db.create_all()
 
-# Initialize the database
-def init_db():
-    conn = sqlite3.connect('results.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS results (
-            id INTEGER PRIMARY KEY,
-            output TEXT
-        )''')
-    conn.commit()
-    conn.close()
-
-init_db()
 
 @app.route('/', methods=['GET', 'POST'])
-def upload_file():
-    if request.method == 'POST':
-        # Check if the post request has the file part
-        if 'file' not in request.files:
-            return redirect(request.url)
-        file = request.files['file']
-        # If the user does not select a file, the browser submits an empty file without a filename.
-        if file.filename == '':
-            return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            run_script_in_background(filepath)
-            return redirect(url_for('results'))
-    return render_template('main/home.html')
+def home():
+    first_snippet = CodeSnippet.query.first()
+    filenames = CodeSnippet.query.with_entities(CodeSnippet.filename).all()
+    filenames = [filename[0] for filename in filenames]  # Flatten the list of tuples
+    
+    # Initialize variables in case there are no snippets
+    first_filename = ''
+    first_code = ''
+    first_result = ''
+    
+    if first_snippet:
+        first_filename = first_snippet.filename
+        first_code = first_snippet.code
+        first_result = first_snippet.result  # Get the execution result of the first snippet
+    
+    return render_template('main/home.html', 
+                           first_filename=first_filename, 
+                           first_code=first_code, 
+                           first_result=first_result, 
+                           filenames=filenames)
 
-def run_script_in_background(script_path):
-    """Run the given script and store its output in the database."""
+@app.route('/run_code', methods=['POST'])
+def run_code():
+    code = request.form.get('code')
+    filename = request.form.get('filename')
+
+    # Redirect standard output
+    old_stdout = sys.stdout
+    redirected_output = sys.stdout = StringIO()
     try:
-        output = subprocess.check_output(['python3', script_path], text=True)
-        conn = sqlite3.connect('results.db')
-        c = conn.cursor()
-        c.execute('INSERT INTO results (output) VALUES (?)', (output,))
-        conn.commit()
-        conn.close()
-    except subprocess.CalledProcessError as e:
-        print(f"Error running script: {e}")
+        exec_globals = {}
+        exec(code, exec_globals)
+        sys.stdout = old_stdout  # Reset standard output to original
+        result = redirected_output.getvalue()
+    except Exception as e:
+        sys.stdout = old_stdout  # Reset standard output to original
+        result = f"Error: {traceback.format_exc()}"
+    finally:
+        redirected_output.close()
+
+    # Check if the filename already exists
+    snippet = CodeSnippet.query.filter_by(filename=filename).first()
+
+    if snippet:
+        # Update existing code and result
+        snippet.code = code
+        snippet.result = result  # Save the execution result
+    else:
+        # Create a new code snippet with result
+        snippet = CodeSnippet(filename=filename, code=code, result=result)
+        db.session.add(snippet)
+
+    db.session.commit()
+
+    return jsonify(result=result or "Code executed with no output.")
+
+
+@app.route('/get_code_by_filename')
+def get_code_by_filename():
+    filename = request.args.get('filename')
+    snippet = CodeSnippet.query.filter_by(filename=filename).first()
+    if snippet:
+        return jsonify({"filename": snippet.filename, "code": snippet.code, "result": snippet.result})
+    return jsonify({"error": "Snippet not found"}), 404
+
+@app.route('/save_code', methods=['POST'])
+def save_code():
+    code = request.form.get('code')
+    filename = request.form.get('filename')
+
+    if not filename:  # Validate filename presence
+        return jsonify({"error": "Filename is required."}), 400
+
+    snippet = CodeSnippet.query.filter_by(filename=filename).first()
+
+    if snippet:
+        snippet.code = code  # Update existing code snippet
+    else:
+        new_snippet = CodeSnippet(filename=filename, code=code)  # Create new snippet
+        db.session.add(new_snippet)
+    
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "Code saved successfully."})
 
 @app.route('/results')
 def results():
@@ -71,7 +121,6 @@ def results():
     c.execute('SELECT output FROM results')
     results = c.fetchall()
     conn.close()
-
 
     data = []
 
@@ -88,5 +137,22 @@ def results():
     
     return render_template('main/results.html', results=data[1])
 
+@app.route('/get_first_snippet')
+def get_first_snippet():
+    # Attempt to get the first code snippet from the database
+    first_snippet = CodeSnippet.query.first()
+    
+    if first_snippet:
+        # If a snippet is found, return its details
+        return jsonify({
+            "filename": first_snippet.filename,
+            "code": first_snippet.code,
+            "result": first_snippet.result
+        })
+    else:
+        # If no snippets are found, return an appropriate message
+        return jsonify({"error": "No snippets found."}), 404
+
 if __name__ == '__main__':
+    initialize_database()
     app.run(debug=True, host='0.0.0.0')

@@ -4,12 +4,44 @@
 
 {% block content %}
 
-    <h1>Upload new Python Script</h1>
-    <form method="post" enctype="multipart/form-data" class="my-3">
-        <div class="mb-3">
-        <input type="file" class="form-control" name="file">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+
+    <div class="col-12 d-flex flex-column">
+        <div class="col-12" style="padding-left: 0px;padding-right: 0px;">
+            <textarea id="codeEditor">{{ first_snippet.code if first_snippet else '' }}</textarea>
         </div>
-        <button type="submit" class="btn btn-primary">Upload</button>
-    </form>
+    </div>
+
+    <div id="resultTabs" class="mt-3">
+        <ul class="nav nav-tabs" id="resultTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="results-tab" data-toggle="tab" href="#results" role="tab" aria-controls="results" aria-selected="true">Results</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="graphs-tab" data-toggle="tab" href="#graphs" role="tab" aria-controls="graphs" aria-selected="false">Graphs</a>
+            </li>
+        </ul>
+        <div class="tab-content" id="resultTabsContent">
+            <div class="tab-pane fade show active" id="results" role="tabpanel" aria-labelledby="results-tab">
+                <div class="col-12" style="padding-left:0px;padding-right: 0px;">
+                    <pre id="result" class="result-pre" style="padding-left: 42px; padding-top: 25px;">{{ first_result if first_snippet else 'Results will be output here.'  }}</pre>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="graphs" role="tabpanel" aria-labelledby="graphs-tab">
+                <div class="col-12" style="padding-left:0px;padding-right: 0px;">
+                    <pre id="graphs" class="result-pre" style="padding-left: 42px; padding-top: 25px;">IF PROPER JSON, THEN GRAPH</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 {% endblock %}

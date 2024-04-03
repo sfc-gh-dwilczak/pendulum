@@ -92,8 +92,8 @@ while not exitRequested:
     #drive motor
     motorCtrl = min(max(PIDoutput, -1) , 1) # Limit
     motorPWM.value = abs(motorCtrl)
-    motorDIR1.value = (motorCtrl > 0)
-    motorDIR2.value = (motorCtrl < 0)
+    motorDIR1.value = (motorCtrl < 0)
+    motorDIR2.value = (motorCtrl > 0)
     
     #logData.append([secondsSinceStart,accAngle,gyroAngle,measuredAngle])
     if (perf_counter_ns() - lastPrintTime) / 1e9 >= 1.0:
